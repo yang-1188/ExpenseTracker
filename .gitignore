@@ -416,3 +416,29 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# === Node.js / Vue.js ===
+# 忽略所有 Node 模組 (node_modules)
+/frontend/node_modules/
+/node_modules/
+
+# 忽略日誌檔
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 忽略環境變數檔案 (!!! 存放機密資料 !!!)
+.env.local
+.env.*.local
+
+# 忽略 Vite 暫存
+.vite/
+
+# 忽略 Vue 產生的建置資料夾 (build output)
+/frontend/dist/
+/dist/
+
+# 忽略 VS Code 本地設定
+# 你的 .gitignore 雖然已經有 .vscode 相關規則
+# 但我們多加一行 /frontend/.vscode/ 確保更安全
+/frontend/.vscode/

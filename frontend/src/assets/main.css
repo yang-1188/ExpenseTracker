@@ -1,0 +1,41 @@
+/* src/assets/main.css */
+
+/* 1. 基礎重設 (Reset)
+  移除瀏覽器預設的邊界和內距*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box; /* 讓寬高計算更直觀 */
+  margin: 0;
+  padding: 0;
+}
+
+/* 2. 設定全站的字體和背景*/
+body {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  line-height: 1.6; /* 舒適的行高 */
+  background-color: #f0f2f5; /* 淺灰色 */
+  color: #333; /* 預設文字顏色 */
+}
+
+/* 3. #app 容器的基本設定
+  (這是 App.vue 掛載的地方)
+*/
+#app {
+  max-width: 1280px; /* 內容最大寬度 */
+  margin: 0 auto; /* 讓內容在寬螢幕上保持置中 */
+  padding: 2rem; /* 給內容一點呼吸空間 */
+  font-weight: normal;
+}
