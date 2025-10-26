@@ -3,12 +3,27 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using ExpenseTracker.Api.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ExpenseTrackerDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+//=== CORS設定 ===
+var allowedOrigins = builder.Configuration
+    .GetSection("CorsSettings:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 //=== JWT設定 ===
 var jwtSecretKey = builder.Configuration.GetValue<string>("JwtSettings:SecretKey");
@@ -48,6 +63,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddScoped<IAuthService, AuthService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -59,6 +76,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("AllowFrontend");
+//開啟 JWT 認證中介層
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
