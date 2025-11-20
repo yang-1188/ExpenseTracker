@@ -47,6 +47,33 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
+
+// --- Google 登入的回呼函式 (Callback) ---
+const handleGoogleLogin = async (response) => {
+  // 1. 拿到 Google 給的 credential (ID Token)
+  const idToken = response.credential
+
+  loading.value = true
+  try {
+    // 2. 把 ID Token 丟給我們的後端 API
+    const apiResponse = await axios.post('https://localhost:7195/api/Auth/google-login', {
+      idToken: idToken,
+    })
+
+    // 3. 登入成功！拿到我們自己的 JWT
+    const ourToken = apiResponse.data.token
+
+    // 4. 存起來 & 跳轉
+    localStorage.setItem('jwt_token', ourToken)
+    ElMessage.success('Google 登入成功！')
+    router.push('/')
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('Google 登入失敗，請稍後再試')
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -79,6 +106,10 @@ const handleLogin = async () => {
           <el-button @click="$router.push('/register')"> 去註冊 </el-button>
         </el-form-item>
       </el-form>
+      <el-divider>或是</el-divider>
+      <div class="google-btn-container">
+        <GoogleLogin :callback="handleGoogleLogin" />
+      </div>
     </el-card>
   </div>
 </template>
@@ -100,5 +131,10 @@ const handleLogin = async () => {
 }
 .el-button + .el-button {
   margin-left: 10px;
+}
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
 </style>

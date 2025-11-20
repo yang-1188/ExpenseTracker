@@ -45,6 +45,30 @@ const handleRegister = async () => {
     loading.value = false
   }
 }
+
+// --- Google 登入/註冊邏輯 (跟 LoginView 一模一樣) ---
+const handleGoogleLogin = async (response) => {
+  const idToken = response.credential
+  loading.value = true
+  try {
+    // 呼叫同一個 API
+    const apiResponse = await axios.post('https://localhost:7195/api/Auth/google-login', {
+      idToken: idToken,
+    })
+
+    // 拿到 Token，直接存起來並登入
+    const ourToken = apiResponse.data.token
+    localStorage.setItem('jwt_token', ourToken)
+
+    ElMessage.success('Google 註冊/登入成功！')
+    router.push('/') // 直接進首頁，不用再登入一次
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('Google 驗證失敗')
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -81,6 +105,10 @@ const handleRegister = async () => {
           <el-button @click="$router.push('/login')"> 去登入 </el-button>
         </el-form-item>
       </el-form>
+      <el-divider>或是</el-divider>
+      <div class="google-btn-container">
+        <GoogleLogin :callback="handleGoogleLogin" />
+      </div>
     </el-card>
   </div>
 </template>
@@ -103,5 +131,10 @@ const handleRegister = async () => {
 /* 讓按鈕有點間距 */
 .el-button + .el-button {
   margin-left: 10px;
+}
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
 </style>
