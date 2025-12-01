@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getTransactions,
   createTransaction,
   getCategories,
   getAccounts,
+  deleteTransaction,
 } from '@/api/transactionApi'
 
 const router = useRouter()
@@ -31,7 +32,7 @@ const form = reactive({
 })
 
 // --- 核心：初始化資料 (一次抓全部) ---
-const initData = async () => {
+const fetchTransactions = async () => {
   loading.value = true
   try {
     // 同時發出三個請求，等待全部完成
@@ -100,6 +101,35 @@ const handleCreate = async () => {
   }
 }
 
+// --- 刪除邏輯 ---
+const handleDelete = (id) => {
+  ElMessageBox.confirm('確定要刪除這筆記帳資料嗎？刪除後無法復原。', '警告', {
+    confirmButtonText: '確定刪除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+    .then(async () => {
+      // 使用者按了「確定」
+      loading.value = true
+      try {
+        await deleteTransaction(id) // 呼叫 API
+        ElMessage.success('刪除成功')
+
+        // 重新抓取列表 (更新畫面)
+        // 優化：其實也可以直接用 JS 從 transactions.value 陣列裡移除該筆資料，省一次流量
+        // 但為了確保資料一致性，重新 fetch 是最穩的做法
+        await fetchTransactions()
+      } catch (error) {
+        console.error(error)
+        ElMessage.error('刪除失敗')
+      } finally {
+        loading.value = false
+      }
+    })
+    .catch(() => {
+      // 使用者按了「取消」，什麼都不做
+    })
+}
 // --- 動作：登出 ---
 const handleLogout = () => {
   // 1. 清除 Token
@@ -112,7 +142,7 @@ const handleLogout = () => {
 
 // 頁面載入時執行
 onMounted(() => {
-  initData()
+  fetchTransactions()
 })
 </script>
 
@@ -161,6 +191,13 @@ onMounted(() => {
             >
               $ {{ scope.row.amount }}
             </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" align="center">
+          <template #default="scope">
+            <el-button link type="danger" size="small" @click="handleDelete(scope.row.id)">
+              刪除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
