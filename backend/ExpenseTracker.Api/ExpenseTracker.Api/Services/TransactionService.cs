@@ -13,42 +13,35 @@ namespace ExpenseTracker.Api.Services
             _context = context;
         }
 
-        // --- 實作 1：查詢列表 ---
+        // --- 1. 查詢列表 ---
         public async Task<List<TransactionResponseDto>> GetTransactionsAsync(Guid userId)
         {
-            // 這裡用到了 LINQ 的 "Projection" (投影) 技巧
-            // 直接把資料庫物件 (Transaction) 轉換成 DTO
-            var transactions = await _context.Transactions
-                .Include(t => t.Category) // 告訴 EF Core 我們要關聯分類表
-                .Include(t => t.Account)  // 告訴 EF Core 我們要關聯帳戶表
-                .Where(t => t.UserId == userId) // ⚠️ 關鍵：只抓「這個人」的資料！
-                .OrderByDescending(t => t.TransactionDate) // 按日期倒序 (最新的在上面)
+            return await _context.Transactions
+                .Include(t => t.Category)
+                .Include(t => t.Account)
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.TransactionDate)
                 .Select(t => new TransactionResponseDto
                 {
                     Id = t.Id,
                     Amount = t.Amount,
                     TransactionDate = t.TransactionDate,
                     Notes = t.Notes,
-                    // 👇 這裡就是「自動翻譯」！
+                    // 自動對應名稱
                     CategoryName = t.Category.Name,
                     CategoryType = t.Category.Type,
                     AccountName = t.Account.Name
                 })
                 .ToListAsync();
-
-            return transactions;
         }
 
-        // --- 實作 2：新增交易 ---
+        // --- 2. 新增交易 (修正版：回傳完整資料) ---
         public async Task<TransactionResponseDto> CreateTransactionAsync(CreateTransactionDto request, Guid userId)
         {
-            // 1. 驗證 (防呆)：檢查傳進來的 CategoryId 和 AccountId 是否真的存在？
-            // (這邊為了求快先跳過，但在生產環境建議要檢查，不然會報外鍵錯誤)
-
-            // 2. 建立資料庫物件
+            // A. 建立實體
             var newTransaction = new Transaction
             {
-                UserId = userId, // 綁定使用者
+                UserId = userId,
                 AccountId = request.AccountId,
                 CategoryId = request.CategoryId,
                 Amount = request.Amount,
@@ -56,29 +49,50 @@ namespace ExpenseTracker.Api.Services
                 Notes = request.Notes
             };
 
-            // 3. 存入資料庫
+            // B. 存入資料庫
             _context.Transactions.Add(newTransaction);
             await _context.SaveChangesAsync();
 
-            // 4. 為了回傳完整的 DTO (包含名稱)，我們需要「重新查詢」一次
-            //    (因為 newTransaction 裡面只有 ID，沒有 Category.Name)
+            // C. (關鍵修正) 重新查詢一次，為了拿到 Category 和 Account 的名稱
+            //    這樣回傳給前端的資料才是完整的，前端如果有需要直接顯示這筆新資料，就不會壞掉
+            var completeTransaction = await _context.Transactions
+                .Include(t => t.Category)
+                .Include(t => t.Account)
+                .FirstAsync(t => t.Id == newTransaction.Id);
 
-            // 稍微偷懶的做法：手動填入名稱 (如果你前端立刻需要顯示)
-            // 或者正規做法：再次 query (會多一次 DB 消耗)
-            // 這裡我們先回傳基本的，前端通常會重新整理列表
-
-            // 為了演示，我們做一個簡單的回傳：
+            // D. 轉換成 DTO 回傳
             return new TransactionResponseDto
             {
-                Id = newTransaction.Id,
-                Amount = newTransaction.Amount,
-                TransactionDate = newTransaction.TransactionDate,
-                Notes = newTransaction.Notes,
-                // 這裡暫時無法拿到 Name，除非再查一次 DB
-                // 在快速開發中，這通常是可以接受的，因為新增完通常會重抓列表
-                CategoryName = "",
-                AccountName = ""
+                Id = completeTransaction.Id,
+                Amount = completeTransaction.Amount,
+                TransactionDate = completeTransaction.TransactionDate,
+                Notes = completeTransaction.Notes,
+                // 讓這裡有值可以回傳
+                CategoryName = completeTransaction.Category.Name,
+                CategoryType = completeTransaction.Category.Type,
+                AccountName = completeTransaction.Account.Name
             };
+        }
+
+        // --- 3. 刪除交易 ---
+        public async Task DeleteTransactionAsync(Guid id, Guid userId)
+        {
+            var transaction = await _context.Transactions
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (transaction == null)
+            {
+                throw new KeyNotFoundException("Transaction not found");
+            }
+
+            // 安全檢查：只能刪除自己的資料
+            if (transaction.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("You are not allowed to delete this transaction.");
+            }
+
+            _context.Transactions.Remove(transaction);
+            await _context.SaveChangesAsync();
         }
     }
 }

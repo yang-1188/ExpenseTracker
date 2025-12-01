@@ -76,5 +76,37 @@ namespace ExpenseTracker.Api.Controllers
                 return StatusCode(500, new { message = "新增交易失敗", error = ex.Message });
             }
         }
+
+        // --- 3. 刪除交易 ---
+        // DELETE: api/Transactions/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTransaction(Guid id)
+        {
+            try
+            {
+                // A. 抓出是誰在刪除
+                Guid userId = GetUserId();
+
+                // B. 呼叫廚房
+                await _transactionService.DeleteTransactionAsync(id, userId);
+
+                // C. 刪除成功，通常回傳 204 No Content (代表成功但沒東西要回傳)
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                // 找不到這筆資料
+                return NotFound(new { message = "找不到此交易" });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // 這筆資料不是你的 (試圖刪除別人的資料)
+                return StatusCode(403, new { message = "你沒有權限刪除此交易" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "刪除失敗", error = ex.Message });
+            }
+        }
     }
 }
