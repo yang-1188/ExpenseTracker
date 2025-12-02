@@ -21,10 +21,22 @@
         public decimal Amount { get; set; }
         public DateTime TransactionDate { get; set; }
         public string? Notes { get; set; }
-
+        //為了讓前端編輯時可以回填
+        public Guid CategoryId { get; set; }
+        public Guid AccountId { get; set; }
         // 把前端 ID 轉換成「名稱」，方便顯示
         public string CategoryName { get; set; } = string.Empty;
         public string CategoryType { get; set; } = string.Empty; // Expense 或 Income
         public string AccountName { get; set; } = string.Empty;
+    }
+
+    // 3. 輸入：更新交易用 
+    public class UpdateTransactionDto
+    {
+        public decimal Amount { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? Notes { get; set; }
+        public Guid CategoryId { get; set; }
+        public Guid AccountId { get; set; }
     }
 }

@@ -108,5 +108,30 @@ namespace ExpenseTracker.Api.Controllers
                 return StatusCode(500, new { message = "刪除失敗", error = ex.Message });
             }
         }
+
+        // --- 4. 更新交易 ---
+        // PUT: api/Transactions/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTransaction(Guid id, [FromBody] UpdateTransactionDto request)
+        {
+            try
+            {
+                Guid userId = GetUserId();
+                var result = await _transactionService.UpdateTransactionAsync(id, request, userId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "找不到此交易" });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return StatusCode(403, new { message = "你沒有權限修改此交易" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "更新失敗", error = ex.Message });
+            }
+        }
     }
 }

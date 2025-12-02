@@ -27,6 +27,8 @@ namespace ExpenseTracker.Api.Services
                     Amount = t.Amount,
                     TransactionDate = t.TransactionDate,
                     Notes = t.Notes,
+                    CategoryId = t.CategoryId,
+                    AccountId = t.AccountId,  
                     // 自動對應名稱
                     CategoryName = t.Category.Name,
                     CategoryType = t.Category.Type,
@@ -67,6 +69,8 @@ namespace ExpenseTracker.Api.Services
                 Amount = completeTransaction.Amount,
                 TransactionDate = completeTransaction.TransactionDate,
                 Notes = completeTransaction.Notes,
+                CategoryId = completeTransaction.CategoryId,
+                AccountId = completeTransaction.AccountId,
                 // 讓這裡有值可以回傳
                 CategoryName = completeTransaction.Category.Name,
                 CategoryType = completeTransaction.Category.Type,
@@ -93,6 +97,52 @@ namespace ExpenseTracker.Api.Services
 
             _context.Transactions.Remove(transaction);
             await _context.SaveChangesAsync();
+        }
+
+        // --- 4. 更新交易 ---
+        public async Task<TransactionResponseDto> UpdateTransactionAsync(Guid id, UpdateTransactionDto request, Guid userId)
+        {
+            // A. 先找出這筆交易
+            var transaction = await _context.Transactions
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (transaction == null) throw new KeyNotFoundException("Transaction not found");
+
+            // B. 安全檢查：只能改自己的資料
+            if (transaction.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("You are not allowed to update this transaction.");
+            }
+
+            // C. 更新欄位
+            transaction.Amount = request.Amount;
+            transaction.TransactionDate = request.TransactionDate;
+            transaction.Notes = request.Notes;
+            transaction.CategoryId = request.CategoryId;
+            transaction.AccountId = request.AccountId;
+
+            // D. 存檔
+            await _context.SaveChangesAsync();
+
+            // E. (跟 Create 一樣) 重新查詢一次，拿到完整的關聯名稱 (CategoryName...)
+            // 這樣前端更新後，列表顯示才會正確
+            var completeTransaction = await _context.Transactions
+                .Include(t => t.Category)
+                .Include(t => t.Account)
+                .FirstAsync(t => t.Id == id);
+
+            return new TransactionResponseDto
+            {
+                Id = completeTransaction.Id,
+                Amount = completeTransaction.Amount,
+                TransactionDate = completeTransaction.TransactionDate,
+                Notes = completeTransaction.Notes,
+                CategoryId = completeTransaction.CategoryId,
+                AccountId = completeTransaction.AccountId,
+                CategoryName = completeTransaction.Category.Name,
+                CategoryType = completeTransaction.Category.Type,
+                AccountName = completeTransaction.Account.Name
+            };
         }
     }
 }
