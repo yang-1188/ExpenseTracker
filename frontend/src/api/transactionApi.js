@@ -21,3 +21,7 @@ export const getAccounts = () => {
 export const deleteTransaction = (id) => {
   return service.delete(`/api/Transactions/${id}`)
 }
+
+export const updateTransaction = (id, data) => {
+  return service.put(`/api/Transactions/${id}`, data)
+}

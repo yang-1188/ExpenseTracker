@@ -5,9 +5,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getTransactions,
   createTransaction,
+  updateTransaction,
+  deleteTransaction,
   getCategories,
   getAccounts,
-  deleteTransaction,
 } from '@/api/transactionApi'
 
 const router = useRouter()
@@ -22,7 +23,11 @@ const loading = ref(false) //控制 Element Plus Table 的 v-loading 動畫
 const submitLoading = ref(false) // 送出按鈕轉圈圈
 const dialogVisible = ref(false) // 控制新增視窗開關
 
-// --- 新增交易表單 ---
+// --- 編輯模式狀態 ---
+const isEditMode = ref(false)
+const editId = ref(null)
+
+// --- 表單資料 ---
 const form = reactive({
   amount: 0,
   transactionDate: new Date(), // 預設今天
@@ -32,7 +37,7 @@ const form = reactive({
 })
 
 // --- 核心：初始化資料 (一次抓全部) ---
-const fetchTransactions = async () => {
+const initData = async () => {
   loading.value = true
   try {
     // 同時發出三個請求，等待全部完成
@@ -63,10 +68,47 @@ const fetchTransactions = async () => {
     loading.value = false
   }
 }
+// 獨立出來的讀取列表函式 (方便新增/修改/刪除後呼叫)
+const fetchTransactions = async () => {
+  try {
+    const res = await getTransactions()
+    transactions.value = res.data
+  } catch (error) {
+    console.error(error)
+  }
+}
+// --- 打開「新增」視窗 ---
+const openCreateDialog = () => {
+  isEditMode.value = false // 設定為新增模式
+  editId.value = null
 
-// --- 動作：送出新增 ---
-const handleCreate = async () => {
-  // 簡單驗證
+  // 清空表單
+  form.amount = 0
+  form.transactionDate = new Date()
+  form.notes = ''
+  form.categoryId = ''
+  form.accountId = ''
+
+  dialogVisible.value = true
+}
+
+// --- 打開「編輯」視窗 (資料回填) ---
+const handleEdit = (row) => {
+  isEditMode.value = true // 設定為編輯模式
+  editId.value = row.id // 記住這筆資料的 ID
+
+  // 回填表單資料
+  form.amount = row.amount
+  form.notes = row.notes
+  form.transactionDate = new Date(row.transactionDate) // 轉成 Date 物件
+  form.categoryId = row.categoryId
+  form.accountId = row.accountId
+
+  dialogVisible.value = true
+}
+
+// --- 送出表單 (同時處理 新增 & 編輯) ---
+const handleSubmit = async () => {
   if (form.amount <= 0 || !form.categoryId || !form.accountId) {
     ElMessage.warning('請填寫金額、分類與帳戶')
     return
@@ -74,28 +116,33 @@ const handleCreate = async () => {
 
   submitLoading.value = true
   try {
-    // 呼叫後端新增 API
-    await createTransaction({
-      amount: form.amount,
-      transactionDate: form.transactionDate,
-      notes: form.notes,
-      categoryId: form.categoryId,
-      accountId: form.accountId,
-    })
+    if (isEditMode.value) {
+      // 編輯流程
+      await updateTransaction(editId.value, {
+        amount: form.amount,
+        transactionDate: form.transactionDate,
+        notes: form.notes,
+        categoryId: form.categoryId,
+        accountId: form.accountId,
+      })
+      ElMessage.success('更新成功！')
+    } else {
+      // 新增流程
+      await createTransaction({
+        amount: form.amount,
+        transactionDate: form.transactionDate,
+        notes: form.notes,
+        categoryId: form.categoryId,
+        accountId: form.accountId,
+      })
+      ElMessage.success('新增成功！')
+    }
 
-    ElMessage.success('新增成功！')
     dialogVisible.value = false // 關閉視窗
-
-    // 重新抓取交易列表 (更新畫面)
-    const res = await getTransactions()
-    transactions.value = res.data
-
-    // 重置表單金額與備註 (保留分類與帳戶，方便連續記帳)
-    form.amount = 0
-    form.notes = ''
+    await fetchTransactions() // 重抓列表更新畫面
   } catch (error) {
     console.error(error)
-    ElMessage.error('新增失敗')
+    ElMessage.error(isEditMode.value ? '更新失敗' : '新增失敗')
   } finally {
     submitLoading.value = false
   }
@@ -114,7 +161,6 @@ const handleDelete = (id) => {
       try {
         await deleteTransaction(id) // 呼叫 API
         ElMessage.success('刪除成功')
-
         // 重新抓取列表 (更新畫面)
         // 優化：其實也可以直接用 JS 從 transactions.value 陣列裡移除該筆資料，省一次流量
         // 但為了確保資料一致性，重新 fetch 是最穩的做法
@@ -142,7 +188,7 @@ const handleLogout = () => {
 
 // 頁面載入時執行
 onMounted(() => {
-  fetchTransactions()
+  initData()
 })
 </script>
 
@@ -153,7 +199,8 @@ onMounted(() => {
         <div class="card-header">
           <h2>我的記賬本</h2>
           <div>
-            <el-button type="primary" @click="dialogVisible = true"> + 新增交易 </el-button>
+            <el-button type="primary" @click="openCreateDialog()"> + 新增交易 </el-button>
+
             <el-button type="danger" size="small" @click="handleLogout">登出</el-button>
           </div>
         </div>
@@ -195,9 +242,14 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="100" align="center">
           <template #default="scope">
-            <el-button link type="danger" size="small" @click="handleDelete(scope.row.id)">
-              刪除
-            </el-button>
+            <div class="button-column">
+              <el-button type="primary" size="small" @click="handleEdit(scope.row)">
+                編輯
+              </el-button>
+              <el-button type="danger" size="small" @click="handleDelete(scope.row.id)">
+                刪除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -248,8 +300,8 @@ onMounted(() => {
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleCreate" :loading="submitLoading">
-            確認新增
+          <el-button type="primary" @click="handleSubmit" :loading="submitLoading">
+            {{ isEditMode ? '確認修改' : '確認新增' }}
           </el-button>
         </span>
       </template>
@@ -271,5 +323,16 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.button-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.button-column .el-button {
+  margin-left: 0 !important; /* 移除預設的 margin */
 }
 </style>
