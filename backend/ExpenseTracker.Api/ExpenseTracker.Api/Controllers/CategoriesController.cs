@@ -6,9 +6,9 @@ using System.Security.Claims;
 
 namespace ExpenseTracker.Api.Controllers
 {
+    [Authorize] 
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // 需要登入，因為要抓 userId
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _service;
@@ -18,16 +18,25 @@ namespace ExpenseTracker.Api.Controllers
             _service = service;
         }
 
+        // GET: api/Categories
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> GetAll()
         {
-            // 從 Token 抓 UserID (複製之前 TransactionsController 的邏輯)
-            var idString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(idString)) return Unauthorized();
-            var userId = Guid.Parse(idString);
+            // 登入才能用，使用!告訴編譯器我們確信 Token 裡有 ID
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-            var list = await _service.GetCategoriesAsync(userId);
-            return Ok(list);
+            var result = await _service.GetCategoriesAsync(userId);
+            return Ok(result);
+        }
+
+        // POST: api/Categories
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateCategoryDto request)
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            var result = await _service.CreateCategoryAsync(request, userId);
+            return Ok(result);
         }
     }
 }

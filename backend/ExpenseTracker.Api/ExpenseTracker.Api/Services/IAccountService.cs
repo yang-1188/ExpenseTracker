@@ -4,7 +4,10 @@ namespace ExpenseTracker.Api.Services
 {
     public interface IAccountService
     {
-        // 取得該使用者的所有錢包
-        Task<List<LookupDto>> GetAccountsAsync(Guid userId);
+        //1. 取得使用者帳戶列表
+        Task<IEnumerable<AccountDto>> GetAccountsAsync(Guid userId);
+
+        // 2. 新增帳戶
+        Task<AccountDto> CreateAccountAsync(CreateAccountDto request, Guid userId);
     }
 }

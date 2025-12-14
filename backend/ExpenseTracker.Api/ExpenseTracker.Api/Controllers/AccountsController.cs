@@ -1,14 +1,14 @@
 ﻿using ExpenseTracker.Api.Dtos;
 using ExpenseTracker.Api.Services;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization; 
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace ExpenseTracker.Api.Controllers
 {
+    [Authorize] 
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class AccountsController : ControllerBase
     {
         private readonly IAccountService _service;
@@ -18,16 +18,24 @@ namespace ExpenseTracker.Api.Controllers
             _service = service;
         }
 
+        // GET: api/Accounts
         [HttpGet]
-        public async Task<ActionResult<List<LookupDto>>> Get()
+        public async Task<IActionResult> GetAll()
         {
-            var idString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(idString)) return Unauthorized();
-            var userId = Guid.Parse(idString);
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-            var list = await _service.GetAccountsAsync(userId);
+            var result = await _service.GetAccountsAsync(userId);
+            return Ok(result);
+        }
 
-            return Ok(list);
+        // POST: api/Accounts
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateAccountDto request)
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            var result = await _service.CreateAccountAsync(request, userId);
+            return Ok(result);
         }
     }
 }

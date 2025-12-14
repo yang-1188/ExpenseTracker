@@ -36,6 +36,7 @@ public partial class ExpenseTrackerDBContext : DbContext
 
             entity.HasOne(d => d.User).WithMany(p => p.Accounts)
                 .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_Accounts_Users");
         });
 
@@ -85,7 +86,9 @@ public partial class ExpenseTrackerDBContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Users__3214EC07E1BB1FF9");
 
-            entity.HasIndex(e => e.GoogleSubjectId, "UQ__Users__A3816A13EEA8D84C").IsUnique();
+            entity.HasIndex(e => e.GoogleSubjectId, "IX_Users_GoogleSubjectId")
+                .IsUnique()
+                .HasFilter("([GoogleSubjectId] IS NOT NULL)");
 
             entity.HasIndex(e => e.Email, "UQ__Users__A9D105347FC4345F").IsUnique();
 
